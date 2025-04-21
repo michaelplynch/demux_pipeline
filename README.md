@@ -9,7 +9,7 @@ The pipeline is designed to be run on a cluster with a slurm scheduler, but can 
 The pipeline is adapted from that used to benchmark demuxSNP (DOI:) to be generalizable to other methods, datasets and research questions.
 In the absence of hashing simulations techniques, the pipeline only covers genotype-based methods, not hybrid.
 
-The pipeline can be tested using an [example dataset](https://www.10xgenomics.com/datasets/10-k-1-1-mixture-of-raji-and-jurkat-cells-multiplexed-2-cm-os-3-1-standard-6-0-0) from 10X Genomcis consisting of cells from two cells lines.
+The pipeline can be tested using an [example dataset](https://www.10xgenomics.com/datasets/10-k-1-1-mixture-of-raji-and-jurkat-cells-multiplexed-2-cm-os-3-1-standard-6-0-0) from 10X Genomics consisting of cells from two cells lines.
 
 ## Overall workflow
 

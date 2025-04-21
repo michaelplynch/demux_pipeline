@@ -3,9 +3,6 @@ id_length_ch = id_ch.count()
 
 seed_ch = Channel.from(2)
 
-read_ch = Channel.fromPath(params.bam_path)
-barcodes_ch = Channel.fromPath(params.barcodes_path)
-
 //id_ch = read_ch.counts().map { counts-> Channel.from(1..counts)}
 id_ch.view()
 
@@ -30,6 +27,36 @@ log.info """\
     .stripIndent(false)
 
 
+// Pull sample data from 10X
+process PULLDATA {
+    publishDir "${projectDir}/data/input"
+    module 'apptainer'
+    container "mplynch28/demux_sim"
+
+    input:
+
+    output:
+    path("*/*.tsv"), emit: barcodes
+    path("*/*.bam"), emit: bams
+    
+    shell:
+    '''
+    mkdir raji
+    mkdir jurkat
+    cd raji
+    curl -O https://cf.10xgenomics.com/samples/cell-exp/6.0.0/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Raji/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Raji_count_sample_alignments.bam
+    curl -O https://cf.10xgenomics.com/samples/cell-exp/6.0.0/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Raji/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Raji_count_sample_alignments.bam.bai
+    curl -O https://cf.10xgenomics.com/samples/cell-exp/6.0.0/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Raji/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Raji_count_sample_barcodes.csv
+
+    cd ../jurkat
+    curl -O https://cf.10xgenomics.com/samples/cell-exp/6.0.0/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Jurkat/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Jurkat_count_sample_alignments.bam
+    curl -O https://cf.10xgenomics.com/samples/cell-exp/6.0.0/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Jurkat/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Jurkat_count_sample_alignments.bam.bai
+    curl -O https://cf.10xgenomics.com/samples/cell-exp/6.0.0/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Jurkat/SC3_v3_NextGem_DI_CellPlex_Jurkat_Raji_10K_Jurkat_count_sample_barcodes.csv
+    
+    cd ..
+    Rscript !{projectDir}/templates/checks.R '*/*.csv'
+    '''
+}
 // Simulate doublets processes
 process PARSE {
     publishDir "${params.dir}"
@@ -87,6 +114,7 @@ process SUBSET_BARCODES {
     ids_array=(!{ids.join(' ')}) # Convert the `ids` tuple into a space-separated string and then into a Bash array
     ns_array=(!{ns.join(' ')})   # Convert the `ns` tuple into a space-separated string and then into a Bash array
     barcodes_array=(!{barcodes}) # Convert the `barcodes` path into a Bash array
+    
     for i in $(seq 0 $((${#ids_array[@]} - 1))); do
         Rscript !{projectDir}/templates/subset_barcodes.R "${barcodes_array[i]}" "!{key}" "${ns_array[i]}" "${ids_array[i]}"
     done
@@ -233,43 +261,53 @@ process VIREO {
 }
 
 workflow {
-    //read_ch.view()
-    //barcodes_ch.view()
+    // pull data based on flag
+    if (params.flag){
+        PULLDATA()
+        read_ch=PULLDATA.out.bams.flatten()
+        barcodes_ch=PULLDATA.out.barcodes.flatten()
+    }
+    else {
+        read_ch = Channel.fromPath(params.bam_path)
+        barcodes_ch = Channel.fromPath(params.barcodes_path)
+    }
+
+    barcodes_ch.view()
+    read_ch.view()
 
     // parse and merge bams
     parse_ch = PARSE(read_ch, id_ch)
-    //parse_ch.collect().view()
+    parse_ch.collect().view()
     merge_ch = MERGE(parse_ch.collect())
 
     // rename and subset barcodes & create lookup
     rename_bcs_ch = RENAME_BCS(barcodes_ch, id_ch)
-    rename_bcs_ch// Still don't fully understand why this works..
+    rename_bcs_ch
         .map { it[1] } // Extract only the second value of each tuple
         .collect()
         .set { barcodes_list_ch }
 
     //sims_ch.combine(id_tuple_ch).view()
     subset_bcs_ch=SUBSET_BARCODES(sims_ch,barcodes_list_ch,id_ch.collect())
-    subset_bcs_ch.view()
+    //subset_bcs_ch.view()
     merged_bcs_ch=MERGE_BCS(subset_bcs_ch)
-    merged_bcs_ch.view()
-    sims_ch.view()
-    sims_ch.map { tuple(it[0],it[1]) }
-        .combine(merged_bcs_ch, by: 0)
-        .set {doub_bcs_ch}
-    
-    
-    LOOKUP(doub_bcs_ch)
+    //merged_bcs_ch.view()
+    //sims_ch.view()
+    //sims_ch.map { tuple(it[0],it[1]) }
+    //    .combine(merged_bcs_ch, by: 0)
+    //    .set {doub_bcs_ch}
+    //
+    //LOOKUP(doub_bcs_ch)
 
     // simulate doublets
-    SIMDOUB(merge_ch, LOOKUP.out.lookup)
-    test_ch = SIMDOUB.out
-        .combine(LOOKUP.out.bcs_merged,by:0)
-    runseeds_ch=test_ch.combine(seed_ch)
-    test_ch.view()
-    runseeds_ch.view()
-    id_length_ch.view()
+    //SIMDOUB(merge_ch, LOOKUP.out.lookup)
+    //test_ch = SIMDOUB.out
+    //    .combine(LOOKUP.out.bcs_merged,by:0)
+    //runseeds_ch=test_ch.combine(seed_ch)
+    //test_ch.view()
+    //runseeds_ch.view()
+    //id_length_ch.view()
     // run souporcell and Vireo
-    SOUP(test_ch,id_length_ch)
-    VIREO(runseeds_ch,id_length_ch)
+    //SOUP(test_ch,id_length_ch)
+    //VIREO(runseeds_ch,id_length_ch)
 }

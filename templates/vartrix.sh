@@ -1,0 +1,1 @@
+vartrix_linux --bam doublet_bam/bam_merged_doublets_ccrcc_20pc.bam --cell-barcodes lookup_table/barcodes_merged_ccrcc_20pc.tsv  --fasta refdata-gex-GRCh38-2020-A/fasta/genome.fa --vcf vartrix/common_variants.vcf  --threads 8 --out-matrix vartrix/demuxSNP.mtx
