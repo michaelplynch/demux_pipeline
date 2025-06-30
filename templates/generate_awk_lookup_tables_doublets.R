@@ -1,4 +1,5 @@
 #############################################################################
+# Adapted from Weber et al, DOI: https://doi.org/10.1093/gigascience/giab062
 # Doublets simulations: generate awk lookup tables and updated barcodes files
 #############################################################################
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #########################################
+# Adapted from Weber et al, DOI: https://doi.org/10.1093/gigascience/giab062
 # Shell script to run doublets simulation
 #########################################
 
