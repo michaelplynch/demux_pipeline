@@ -1,0 +1,8 @@
+# Ignore run-specific files and work direcory which should not be tracked.
+.nextflow*
+work
+nohup.out
+*.mmd
+*.html
+*.sif
+apptainer-cache

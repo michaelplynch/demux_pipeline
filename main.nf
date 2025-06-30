@@ -30,7 +30,6 @@ log.info """\
 // Pull sample data from 10X
 process PULLDATA {
     publishDir "${projectDir}/data/input"
-    module 'apptainer'
     container "mplynch28/demux_sim"
 
     input:
@@ -60,7 +59,6 @@ process PULLDATA {
 // Simulate doublets processes
 process PARSE {
     publishDir "${params.dir}"
-    module 'apptainer'
     container "mplynch28/demux_sim"
 
     input:
@@ -78,7 +76,6 @@ process PARSE {
 
 process RENAME_BCS {
     publishDir "${params.dir}"
-    module 'apptainer'
     container "mplynch28/demux_sim"
 
     input:
@@ -96,7 +93,6 @@ process RENAME_BCS {
 
 process SUBSET_BARCODES {
     publishDir "${params.dir}"
-    module 'apptainer'
     container "mplynch28/demux_sim"
 
     input:
@@ -124,7 +120,6 @@ process SUBSET_BARCODES {
 process MERGE {
     cpus 4
     publishDir "${params.dir}"
-    module 'apptainer'
     container "mplynch28/demux_sim"
 
     input:
@@ -141,7 +136,6 @@ process MERGE {
 
 process MERGE_BCS {
     publishDir "${params.dir}"
-    module 'apptainer'
     container "mplynch28/demux_sim"
 
     input:
@@ -158,7 +152,6 @@ process MERGE_BCS {
 
 process LOOKUP {
     publishDir "${params.dir}"
-    module 'apptainer'
     container "mplynch28/demux_sim"
 
     input:
@@ -176,7 +169,6 @@ process LOOKUP {
 
 process SIMDOUB {
     publishDir "${params.dir}"
-    module 'apptainer'
     container "mplynch28/demux_sim"
 
     input:
@@ -198,8 +190,7 @@ process SOUP {
     cache true
     cpus 10
     publishDir "${params.dir}"
-    module 'apptainer'
-    container "${params.container__souporcell}"
+    container "shub://wheaton5/souporcell"
     
     input:
     tuple val(key), val(doublets), path(bam), path(bai), path(lookup)
@@ -230,7 +221,6 @@ process VIREO {
     cache true
     cpus 5
     publishDir "${params.dir}"
-    module 'apptainer'
     container "mplynch28/demux_vireo"
     
     input:
@@ -261,8 +251,8 @@ process VIREO {
 }
 
 workflow {
-    // pull data based on flag
-    if (params.flag){
+    // create data channels from download or local based on flag
+    if (params.download_flag){
         PULLDATA()
         read_ch=PULLDATA.out.bams.flatten()
         barcodes_ch=PULLDATA.out.barcodes.flatten()
@@ -292,22 +282,22 @@ workflow {
     //subset_bcs_ch.view()
     merged_bcs_ch=MERGE_BCS(subset_bcs_ch)
     //merged_bcs_ch.view()
-    //sims_ch.view()
-    //sims_ch.map { tuple(it[0],it[1]) }
-    //    .combine(merged_bcs_ch, by: 0)
-    //    .set {doub_bcs_ch}
+    sims_ch.view()
+    sims_ch.map { tuple(it[0],it[1]) }
+        .combine(merged_bcs_ch, by: 0)
+        .set {doub_bcs_ch}
     //
-    //LOOKUP(doub_bcs_ch)
+    LOOKUP(doub_bcs_ch)
 
     // simulate doublets
-    //SIMDOUB(merge_ch, LOOKUP.out.lookup)
-    //test_ch = SIMDOUB.out
-    //    .combine(LOOKUP.out.bcs_merged,by:0)
-    //runseeds_ch=test_ch.combine(seed_ch)
+    SIMDOUB(merge_ch, LOOKUP.out.lookup)
+    test_ch = SIMDOUB.out
+        .combine(LOOKUP.out.bcs_merged,by:0)
+    runseeds_ch=test_ch.combine(seed_ch)
     //test_ch.view()
     //runseeds_ch.view()
     //id_length_ch.view()
     // run souporcell and Vireo
-    //SOUP(test_ch,id_length_ch)
-    //VIREO(runseeds_ch,id_length_ch)
+    SOUP(test_ch,id_length_ch)
+    VIREO(runseeds_ch,id_length_ch)
 }
