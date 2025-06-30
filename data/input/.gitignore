@@ -1,0 +1,5 @@
+# Ignore everything in this directory
+*
+# Except this file
+!.gitignore
+# Prevents large files e.g. reference genome being check into git but keeps directory
